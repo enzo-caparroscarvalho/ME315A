@@ -1,0 +1,139 @@
+---
+title: "Lista 02"
+author: "Enzo Caparrós Carvalho"
+format: pdf
+editor: visual
+---
+
+## Verificando Dados
+
+```{r, echo=FALSE, warning=FALSE}
+library(DBI)
+library(RSQLite)
+
+con <- dbConnect(RSQLite::SQLite(), "me315.sqlite")
+```
+
+
+```{sql connection=con, eval=TRUE}
+SELECT * FROM PRESERVE
+```
+
+```{sql connection=con, eval=TRUE}
+SELECT * FROM EMPLOYEE
+```
+
+## Hands-On
+
+### Exercício 1:
+
+Exiba a tabela inteira. Ordene o resultado pela coluna *ACRES* em ordem crescente.
+
+```{sql connection=con}
+
+SELECT *
+FROM PRESERVE
+ORDER BY ACRES;
+
+```
+
+### Exercício 2:
+
+Exiba as colunas *PNAME* e *FEE* das reservas de Montana. Ordene o resultado por *PNAME* em ordem decrescente.
+
+```{sql connection=con}
+SELECT PNAME, FEE
+FROM PRESERVE
+WHERE STATE = 'MT'
+ORDER BY PNAME DESC;
+```
+
+### Exercício 3:
+
+Exiba as colunas *FEE* e *ACRES*. Ordene o resultado primeiro por *FEE* e depois por *ACRES*.
+
+```{sql connection=con}
+SELECT FEE, ACRES
+FROM PRESERVE
+ORDER BY FEE, ACRES;
+```
+
+### Exercício 4:
+
+Exiba a coluna *PNAME* das reservas do Arizona, em ordem crescente de *PNO*, sem exibir *PNO*.
+
+```{sql connection=con}
+SELECT PNAME
+FROM PRESERVE
+WHERE STATE = 'AZ'
+ORDER BY PNO;
+```
+
+### Exercício 5:
+
+Exiba as colunas *STATE*, *FEE* e *PNO* das reservas com mais de 100 acres. Ordene o resultado por *STATE*, *FEE* e *PNO*.
+
+```{sql connection=con}
+SELECT STATE, FEE, PNO
+FROM PRESERVE
+WHERE ACRES > 100
+ORDER BY STATE, FEE, PNO;
+```
+
+### Exercício 6:
+
+Exiba as linhas da tabela `PRESERVE` em que `STATE >= 'M'`.
+
+```{sql connection=con}
+SELECT *
+FROM PRESERVE
+WHERE STATE >= 'M';
+```
+
+### Exercício 7:
+
+Exiba as linhas da tabela `PRESERVE` em que `PNAME` seja menor que `TATKON`.
+
+```{sql connection=con}
+SELECT *
+FROM PRESERVE
+WHERE PNAME < 'TATKON';
+```
+
+### Exercício 8 (foi pulado)
+
+### Exercício 9:
+
+Exiba a tabela `EMPLOYEE` inteira, ordenada pela coluna `ENAME`.
+
+```{sql connection=con}
+SELECT *
+FROM EMPLOYEE
+ORDER BY ENAME;
+```
+
+### Exercício 10:
+
+Exiba os funcionários com salário maior que 2000, ordenados pelo salário em ordem decrescente.
+
+```{sql connection=con}
+SELECT *
+FROM EMPLOYEE
+WHERE SALARY > 2000
+ORDER BY SALARY DESC;
+```
+
+### Exercício 11:
+
+Exiba as colunas `DNO`, `ENO` e `ENAME`, ordenando por departamento em ordem decrescente e por funcionário em ordem crescente.
+
+```{sql connection=con}
+SELECT DNO, ENO, ENAME
+FROM EMPLOYEE
+ORDER BY DNO DESC, ENO;
+```
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
