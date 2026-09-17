@@ -1,0 +1,244 @@
+---
+title: "Lab05_Caparros_ME315A"
+author: "Enzo Caparrós Carvalho"
+format: pdf
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r}
+library(dplyr)
+library(readr)
+library(leaflet)
+
+airports <- read_csv("airports.csv") |>
+  select(
+    IATA_CODE,
+    CITY,
+    STATE,
+    LATITUDE,
+    LONGITUDE
+  )
+```
+
+## Parte 1
+
+### 1.
+
+```{r}
+analisa_aeronave <- function(tail_number, arquivo) {
+
+  getStats <- function(input, pos) {
+    input |>
+      filter(TAIL_NUMBER == tail_number)
+  }
+  
+  voos <- read_csv_chunked(
+    arquivo,
+    callback = DataFrameCallback$new(getStats),
+    chunk_size = 1000000
+  )
+  
+voos <- voos |>
+  mutate(
+    DATA_HORA = as.POSIXct(
+      paste(
+        YEAR,
+        MONTH,
+        DAY,
+        sprintf("%04d", as.integer(SCHEDULED_DEPARTURE))
+      ),
+      format = "%Y %m %d %H%M",
+      tz = "America/Sao_Paulo"
+    )
+  ) |>
+  arrange(DATA_HORA)
+  
+  tabela <- voos
+  
+  coordenadas <- airports |>
+    select(
+      IATA_CODE,
+      LATITUDE,
+      LONGITUDE
+    )
+
+  tabela <- tabela |>
+    left_join(
+      coordenadas,
+      by = c("ORIGIN_AIRPORT" = "IATA_CODE")
+    ) |>
+    rename(
+      ORIGIN_LATITUDE = LATITUDE,
+      ORIGIN_LONGITUDE = LONGITUDE
+    )
+
+  tabela <- tabela |>
+    left_join(
+      coordenadas,
+      by = c("DESTINATION_AIRPORT" = "IATA_CODE")
+    ) |>
+    rename(
+      DESTINATION_LATITUDE = LATITUDE,
+      DESTINATION_LONGITUDE = LONGITUDE
+    )
+
+  tabela <- tabela |>
+    mutate(
+      VELOCIDADE_MEDIA = if_else(
+        !is.na(DISTANCE) &
+          !is.na(AIR_TIME) &
+          AIR_TIME > 0,
+        DISTANCE / (AIR_TIME / 60),
+        NA_real_
+      )
+    )
+  
+
+  mapa <- leaflet() |>
+    addTiles()
+
+  aeroportos_trajeto <- bind_rows(
+    tabela |>
+      transmute(
+        IATA_CODE = ORIGIN_AIRPORT,
+        LATITUDE = ORIGIN_LATITUDE,
+        LONGITUDE = ORIGIN_LONGITUDE
+      ),
+    
+    tabela |>
+      transmute(
+        IATA_CODE = DESTINATION_AIRPORT,
+        LATITUDE = DESTINATION_LATITUDE,
+        LONGITUDE = DESTINATION_LONGITUDE
+      )
+  ) |>
+    distinct(IATA_CODE, .keep_all = TRUE) |>
+    filter(
+      !is.na(LATITUDE),
+      !is.na(LONGITUDE)
+    )
+  
+
+  mapa <- mapa |>
+    addCircleMarkers(
+      data = aeroportos_trajeto,
+      lng = ~LONGITUDE,
+      lat = ~LATITUDE,
+      radius = 4,
+      popup = ~IATA_CODE
+    )
+
+  for (i in seq_len(nrow(tabela))) {
+    
+    voo <- tabela[i, ]
+    
+    if (
+      !is.na(voo$ORIGIN_LATITUDE) &&
+      !is.na(voo$ORIGIN_LONGITUDE) &&
+      !is.na(voo$DESTINATION_LATITUDE) &&
+      !is.na(voo$DESTINATION_LONGITUDE)
+    ) {
+      
+
+      espessura <- ifelse(
+        is.na(voo$VELOCIDADE_MEDIA),
+        2,
+        max(
+          2,
+          min(
+            8,
+            voo$VELOCIDADE_MEDIA / 100
+          )
+        )
+      )
+      
+      informacoes <- paste0(
+        "Data: ",
+        format(voo$DATA_HORA, "%d/%m/%Y %H:%M"),
+        "<br>Origem: ",
+        voo$ORIGIN_AIRPORT,
+        "<br>Destino: ",
+        voo$DESTINATION_AIRPORT,
+        "<br>Distância: ",
+        voo$DISTANCE,
+        " milhas",
+        "<br>Velocidade média: ",
+        round(voo$VELOCIDADE_MEDIA, 2),
+        " milhas/h"
+      )
+      
+      mapa <- mapa |>
+        addPolylines(
+          lng = c(
+            voo$ORIGIN_LONGITUDE,
+            voo$DESTINATION_LONGITUDE
+          ),
+          lat = c(
+            voo$ORIGIN_LATITUDE,
+            voo$DESTINATION_LATITUDE
+          ),
+          weight = espessura,
+          popup = informacoes
+        )
+    }
+  }
+  
+
+  resultado <- list(
+    tabela = tabela,
+    grafico = mapa
+  )
+  
+  return(resultado)
+}
+```
+
+### 2.
+
+Utilize a função analisa_aeronave para analisar uma aeronave.
+
+```{r}
+resultado <- analisa_aeronave(
+  tail_number = "N431WN",
+  arquivo = file.path("flights.csv.zip")
+)
+```
+
+### 3.
+
+Apresente a tabela contendo todos os trajetos realizados pela aeronave.
+
+```{r}
+resultado$tabela
+```
+
+### 4.
+
+Apresente o mapa contendo todo o trajeto realizado pela aeronave.
+
+```{r}
+resultado$grafico
+```
+
+### 5.
+
+```{r}
+names(resultado)
+```
+
+
+Verifique os nomes dos elementos retornados pela função.
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
+
