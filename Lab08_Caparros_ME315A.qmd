@@ -1,0 +1,133 @@
+---
+title: "Lab08_Caparros_ME315"
+author: "Enzo Caparrós Carvalho"
+format: pdf
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r}
+reticulate::py_require("polars")
+```
+
+```{python}
+import polars as pl
+```
+
+## Hands-On
+
+### Exercício 1:
+
+Quais são os 5 filmes com as maiores notas (averageRating)? Apresente uma solução capaz de desempatar os filmes baseando-se no número de votos recebidos.
+
+```{python}
+titulos = pl.read_csv(
+    "title.basics0.tsv.gz",
+    separator="\t",
+    null_values="\\N"
+)
+
+avaliacoes = pl.read_csv(
+    "title.ratings.tsv.gz",
+    separator="\t",
+    null_values="\\N"
+)
+
+filmes = (
+    titulos
+    .filter(pl.col("titleType") == "movie")
+    .join(avaliacoes, on="tconst", how="inner")
+    .sort(
+        ["averageRating", "numVotes"],
+        descending=[True, True]
+    )
+    .select(
+        "primaryTitle",
+        "startYear",
+        "genres",
+        "averageRating",
+        "numVotes"
+    )
+    .head(5)
+)
+
+filmes
+```
+
+### Exercício 2:
+
+Qual é o gênero mais frequente entre os filmes com nota maior que 8?
+
+```{python}
+generos = (
+    titulos
+    .filter(pl.col("titleType") == "movie")
+    .join(avaliacoes, on="tconst", how="inner")
+    .filter(pl.col("averageRating") > 8)
+    .select(
+        pl.col("genres")
+        .str.split(",")
+        .alias("genres")
+    )
+    .explode("genres")
+    .filter(
+        pl.col("genres").is_not_null()
+        & (pl.col("genres") != "")
+    )
+    .group_by("genres")
+    .agg(
+        pl.len().alias("quantidade")
+    )
+    .sort(
+        ["quantidade", "genres"],
+        descending=[True, False]
+    )
+)
+
+generos.head(1)
+```
+
+### Exercício 3:
+
+Quais são os 3 atores/atrizes que mais participaram de filmes com nota maior que 7.5?
+
+```{python}
+elenco = pl.read_csv(
+    "title.principals0.tsv.gz",
+    separator="\t",
+    null_values="\\N"
+)
+
+atores = (
+    elenco
+    .filter(pl.col("category").is_in(["actor", "actress"]))
+    .join(
+        avaliacoes.filter(pl.col("averageRating") > 7.5),
+        on="tconst",
+        how="inner"
+    )
+    .group_by("nconst")
+    .agg(
+        pl.col("tconst").n_unique().alias("quantidade_filmes")
+    )
+    .sort(
+        ["quantidade_filmes", "nconst"],
+        descending=[True, False]
+    )
+    .head(3)
+)
+
+atores
+```
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
